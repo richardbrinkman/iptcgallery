@@ -1,0 +1,1 @@
+mysqld_safe --datadir=$PWD/mariadb --log-basename=logs --log-output=table --socket=socket.sock

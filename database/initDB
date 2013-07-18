@@ -1,0 +1,21 @@
+mysql -u root -h 127.0.0.1 << EOF
+CREATE DATABASE IF NOT EXISTS gallery;
+GRANT ALL PRIVILEGES ON gallery.* TO php@localhost IDENTIFIED BY 'f2jffwjfw29134agfa';
+USE gallery;
+DROP TABLE IF EXISTS iptc;
+CREATE TABLE iptc(
+	iptc_id char(5) NOT NULL PRIMARY KEY,
+	iptc_name varchar(25) NOT NULL UNIQUE KEY
+);
+CREATE TABLE IF NOT EXISTS directory(
+	directory_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	dirname VARCHAR(255) NOT NULL UNIQUE KEY
+);
+CREATE TABLE IF NOT EXISTS photo(
+	photo_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	filename VARCHAR(255) NOT NULL UNIQUE KEY,
+	width SMALLINT,
+	height SMALLINT
+);
+EOF
+iptc -l | grep : | sed -e 's/^\ \([0-9]\):\([0-9][0-9][0-9]\)\ \(.*\)$/INSERT INTO iptc(iptc_id,iptc_name) VALUES("\1#\2", "\3");/' | mysql --user=root --host=127.0.0.1 --database=gallery
