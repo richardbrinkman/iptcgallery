@@ -1,9 +1,7 @@
 <?php
-	require_once(CLASS_PATH . "Database.php");
 	require_once(CLASS_PATH . "Page.php");
 
 	class Scan extends Page {
-		protected $db;
 		private $sqlGetPhotoId;
 		private $sqlGetLastModified;
 		private $sqlDelPhoto;
@@ -12,7 +10,6 @@
 
 		public function __construct() {
 			parent::__construct();
-			$this->db = Database::getInstance();
 			$this->sqlGetPhotoId = $this->db->prepare("SELECT photo_id FROM photo WHERE filename=:filename");
 			$this->sqlGetPhotoId->setFetchMode(PDO::FETCH_COLUMN, 0);
 			$this->sqlGetLastModified = $this->db->prepare("SELECT UNIX_TIMESTAMP(last_modified) FROM photo WHERE filename=:filename");
