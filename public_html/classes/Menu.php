@@ -20,7 +20,7 @@
 					array("Scan", "/directory/Scan", null),
 					array("Prune", "/directory/Prune", null)
 				)),
-				array("Query", "query/", null)
+				array("Query", "Query", null)
 			));
 		}
 
