@@ -1,4 +1,6 @@
 <?php
+	namespace classes;
+
 	require_once("config.php");
 
 	class Template {

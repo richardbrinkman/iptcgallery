@@ -1,4 +1,6 @@
 <?php
+	namespace classes;
+
 	class Menu {
 		protected $items;
 
@@ -11,11 +13,11 @@
 		}
 
 		public function getStandardMenu() {
-			return array("Home", "Home", array(
-				array("Directory management", "directory/", array(
-					array("Add", "directory/Add", null),
-					array("Delete", "directory/Delete", null),
-					array("Scan", "directory/Scan", null)
+			return array("Home", "/Home", array(
+				array("Directory management", "/directory/", array(
+					array("Add", "/directory/Add", null),
+					array("Delete", "/directory/Delete", null),
+					array("Scan", "/directory/Scan", null)
 				)),
 				array("Query", "query/", null)
 			));

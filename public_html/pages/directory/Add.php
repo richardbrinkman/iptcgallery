@@ -1,8 +1,9 @@
 <?php
-	require_once("config.php");
-	require_once(CLASS_PATH . "Page.php");
+	namespace pages\directory;
 
-	class Add extends Page {
+	require_once("config.php");
+
+	class Add extends \classes\Page {
 		public function __construct() {
 			parent::__construct();
 			$this->template->title = "Add directory to gallery";
@@ -13,7 +14,7 @@
 			if (isset($_POST["directory"])) {
 				$query = $this->db->prepare("insert into directory(dirname) values (?)");
 				if (!$query->execute(array($_POST["directory"])))
-					throw new Exception("Could not insert directory " . $_POST["directory"] . " in the database");
+					throw new \Exception("Could not insert directory " . $_POST["directory"] . " in the database");
 			}
 			parent::execute();
 		}

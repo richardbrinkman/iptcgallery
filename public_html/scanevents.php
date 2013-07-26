@@ -2,8 +2,9 @@
 	header('Content-Type: text/event-stream');
 	header('Cache-Control: no-cache');
 
-	require_once("classes/Database.php");
-	$db = Database::getInstance();
+	require_once("vendor/autoload.php");
+
+	$db = classes\Database::getInstance();
 
 	$preparedStatements = array(
 		"sqlGetPhotoId" => $db->prepare("SELECT photo_id FROM photo WHERE filename=:filename"),
