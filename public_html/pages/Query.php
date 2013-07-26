@@ -1,7 +1,7 @@
 <?php
-	require_once(CLASS_PATH . "Page.php");
+	namespace pages;
 
-	class Query extends Page {
+	class Query extends \classes\Page {
 		private $conditions;
 
 		public function __construct() {
@@ -41,7 +41,7 @@
 			}
 			$query .= " ORDER BY filename LIMIT 100";
 			$sqlGetPhotoIds = $this->db->query($query);
-			$sqlGetPhotoIds->setFetchMode(PDO::FETCH_COLUMN, 0);
+			$sqlGetPhotoIds->setFetchMode(\PDO::FETCH_COLUMN, 0);
 			foreach ($sqlGetPhotoIds as $photoId)
 				$result .= "<img src=\"thumbnail.php?photo_id=$photoId\">";
 			$result .= "</div>";
