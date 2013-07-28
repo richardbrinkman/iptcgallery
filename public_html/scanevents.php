@@ -38,11 +38,11 @@
 							$sizes = getimagesize($root . $file, $imageinfo);
 							if ($sizes["mime"] == "image/jpeg") {
 								if ($lastModified) { //Photo exists and needs updating
-									sendLog("Updating: " . $path . $file);
+									sendLog("Updating: " . $root . $file);
 									if (!$preparedStatements["sqlDelPhoto"]->execute(array(":directory_id" => $directoryId, ":filename" => $file)))
 										throw new Exception("$file already exists and cannot delete it from the database");
 								} else
-									sendLog("Adding: " . $path . $file);
+									sendLog("Adding: " . $root . $file);
 								if (!$preparedStatements["sqlInsPhoto"]->execute(array(":directory_id" => $directoryId, ":filename" => $file, ":width" => $sizes[0], ":height" => $sizes[1])))
 									throw new Exception("Could not insert $file into the database");
 								if (isset($imageinfo["APP13"]) && $preparedStatements["sqlGetPhotoId"]->execute(array(":directory_id" => $directoryId, ":filename" => $file))) {
