@@ -22,7 +22,7 @@
 			echo $blob;
 		else {
 			//Get the filename of the origional photo from the database
-			$sqlGetImage = $db->prepare("SELECT filename,width,height FROM photo WHERE photo_id=:photo_id");
+			$sqlGetImage = $db->prepare("SELECT CONCAT(dirname,filename),width,height FROM photo NATURAL JOIN directory WHERE photo_id=:photo_id");
 			if ($sqlGetImage->execute(array("photo_id" => $photoId)) && $row = $sqlGetImage->fetch()) {
 				list($filename, $width, $height) = $row;
 				$image = new \IMagick($filename);
