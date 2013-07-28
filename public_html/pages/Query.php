@@ -35,15 +35,14 @@
 			$result .= "</div>";
 			
 			$result .= "<div class=\"thumbnails\" id=\"thumbnails\">";
-			$query = "SELECT photo_id FROM photo WHERE true";
+			$query = "SELECT photo_id, CONCAT(dirname,filename) AS pathname FROM directory NATURAL JOIN photo WHERE true";
 			foreach ($this->conditions as list($logicalOperand, $iptcId, $comparisonOperand, $value)) {
 				$query .= " $logicalOperand photo_id IN (SELECT photo_id FROM tag WHERE iptc_id = \"$iptcId\" AND value $comparisonOperand \"$value\")";
 			}
-			$query .= " ORDER BY filename LIMIT 100";
+			$query .= " ORDER BY pathname LIMIT 100";
 			$sqlGetPhotoIds = $this->db->query($query);
-			$sqlGetPhotoIds->setFetchMode(\PDO::FETCH_COLUMN, 0);
-			foreach ($sqlGetPhotoIds as $photoId)
-				$result .= "<img src=\"thumbnail.php?photo_id=$photoId\">";
+			foreach ($sqlGetPhotoIds as list($photoId, $filename))
+				$result .= "<img src=\"thumbnail.php?photo_id=$photoId\" title=\"$filename\" alt=\"$filename\">";
 			$result .= "</div>";
 
 			return $result;
