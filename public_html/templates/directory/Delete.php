@@ -1,8 +1,16 @@
 <?php require(TEMPLATE_PATH . "header.php") ?>
 
+<script>
+	function toggle() {
+		var toggleAll = document.getElementById("toggleAll");
+		var allCheckboxes = document.querySelectorAll("#directorytable input[type='checkbox']");
+		for (var i=0; i<allCheckboxes.length; i++)
+			allCheckboxes[i].checked = toggleAll.checked;
+	}
+</script>
 <h1>Delete directory from the gallery</h1>
 <form method="post" action="<?=$_SERVER["PHP_SELF"] ?>">
-	<table>
+	<table id="directorytable">
 		<tr>
 			<th>Directory</th>
 			<th>Delete</th>
@@ -15,6 +23,12 @@
 			</td>
 		</tr>
 		<?php endforeach ?>
+		<tr>
+			<td>&nbsp;</td>
+			<td>
+				<input id="toggleAll" type="checkbox" onchange="toggle()">
+				Select all
+			</td>
 	</table>
 	<input type="submit" value="Delete selected">
 </form>
