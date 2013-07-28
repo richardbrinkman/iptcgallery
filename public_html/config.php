@@ -5,4 +5,10 @@
 	define("TEMPLATE_PATH", APPLICATION_ROOT . "templates" . DIRECTORY_SEPARATOR);
 
 	define("THUMBNAIL_SIZE", 200);
+
+	spl_autoload_register(function($class) {
+		$file = APPLICATION_ROOT . strtr($class, "\\", DIRECTORY_SEPARATOR) . ".php";
+		if (file_exists($file))
+			require_once($file);
+	});
 ?>

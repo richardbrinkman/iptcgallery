@@ -1,6 +1,5 @@
 <?php
 	require_once("config.php");
-	require_once("vendor/autoload.php");
 
 	$class = "pages\\" . (array_key_exists("PATH_INFO", $_SERVER) ? strtr(substr($_SERVER["PATH_INFO"],1), DIRECTORY_SEPARATOR, "\\") : "Home");
 	if (!class_exists($class)) 

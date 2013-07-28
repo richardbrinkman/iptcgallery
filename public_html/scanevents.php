@@ -13,8 +13,8 @@
 		"sqlInsPhoto" => $db->prepare("INSERT INTO photo(filename, width, height) VALUES(:filename, :width, :height)"),
 		"sqlInsTag" => $db->prepare("INSERT INTO tag(photo_id, iptc_id, value) VALUES(:photo_id, :iptc_id, :value)")
 	);
-	$preparedStatements["sqlGetPhotoId"]->setFetchMode(PDO::FETCH_COLUMN, 0);
-	$preparedStatements["sqlGetLastModified"]->setFetchMode(PDO::FETCH_COLUMN, 0);
+	$preparedStatements["sqlGetPhotoId"]->setFetchMode(\PDO::FETCH_COLUMN, 0);
+	$preparedStatements["sqlGetLastModified"]->setFetchMode(\PDO::FETCH_COLUMN, 0);
 
 	function sendLog($message) {
 		echo "retry: 3600000\n";
@@ -56,7 +56,7 @@
 			}
 	}
 
-	foreach ($db->query("SELECT dirname FROM directory", PDO::FETCH_COLUMN, 0) as $dirname)
+	foreach ($db->query("SELECT dirname FROM directory", \PDO::FETCH_COLUMN, 0) as $dirname)
 		processDir($dirname, $preparedStatements);
 
 	sendLog("finished");
