@@ -2,7 +2,7 @@
 	header('Content-Type: text/event-stream');
 	header('Cache-Control: no-cache');
 
-	require_once("vendor/autoload.php");
+	require_once("config.php");
 
 	$db = classes\Database::getInstance();
 

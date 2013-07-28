@@ -1,6 +1,5 @@
 <?php
 	require_once("config.php");
-	require_once(CLASS_PATH . "Database.php");
 
 	header("Content-type: image/jpeg");
 
