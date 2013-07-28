@@ -12,13 +12,13 @@
 
 		public function execute() {
 			if (isset($_POST["directories"])) {
-				$sqlDelete = $this->db->prepare("DELETE FROM directory WHERE directory_id=? ORDER BY dirname");
+				$sqlDelete = $this->db->prepare("DELETE FROM directory WHERE directory_id=?");
 				$sqlDelete->bindParam(1, $id, \PDO::PARAM_INT);
 				foreach ($_POST["directories"] as $id) 
 					$sqlDelete->execute();
 			}
 			$directories = array();
-			foreach ($this->db->query("SELECT directory_id, dirname FROM directory") as list($id, $dirname)) {
+			foreach ($this->db->query("SELECT directory_id, dirname FROM directory ORDER BY dirname") as list($id, $dirname)) {
 				$directories[$id] = $dirname;
 			}
 			$this->template->directories = $directories;
