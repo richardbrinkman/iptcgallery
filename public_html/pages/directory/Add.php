@@ -13,7 +13,7 @@
 		public function execute() {
 			if (isset($_POST["directory"])) {
 				$query = $this->db->prepare("insert into directory(dirname) values (?)");
-				if (!$query->execute(array($_POST["directory"])))
+				if (!$query->execute(array(rtrim($_POST["directory"], "\\/") . DIRECTORY_SEPARATOR)))
 					throw new \Exception("Could not insert directory " . $_POST["directory"] . " in the database");
 			}
 			parent::execute();
