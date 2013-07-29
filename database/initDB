@@ -31,11 +31,16 @@ CREATE TABLE IF NOT EXISTS thumbnail(
 );
 CREATE TABLE IF NOT EXISTS tag(
 	tag_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-	photo_id INT NOT NULL,
 	iptc_id CHAR(5) NOT NULL,
 	value VARCHAR(255) NOT NULL,
-	FOREIGN KEY(photo_id) REFERENCES photo(photo_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	UNIQUE KEY(iptc_id, value),
 	FOREIGN KEY(iptc_id) REFERENCES iptc(iptc_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE TABLE IF NOT EXISTS link(
+	tag_id INT NOT NULL,
+	photo_id INT NOT NULL,
+	FOREIGN KEY(tag_id) REFERENCES tag(tag_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY(photo_id) REFERENCES photo(photo_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 EOF
 iptc -l | grep : | sed -e 's/^\ \([0-9]\):\([0-9][0-9][0-9]\)\ \(.*\)$/INSERT INTO iptc(iptc_id,iptc_name) VALUES("\1#\2", "\3");/' | mysql --user=root --host=127.0.0.1 --database=gallery
