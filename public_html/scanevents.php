@@ -4,6 +4,8 @@
 
 	require_once("config.php");
 
+	set_time_limit(0); //allow this script to run al long as it takes
+
 	$db = classes\Database::getInstance();
 
 	$preparedStatements = array(
