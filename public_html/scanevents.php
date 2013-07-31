@@ -88,6 +88,9 @@
 
 	foreach ($db->query("SELECT directory_id, dirname FROM directory") as list($directoryId, $dirname))
 		processDir($directoryId, $dirname, "", $preparedStatements);
+	
+	//Delete tags that are no longer in use
+	$db->exec("DELETE FROM tag WHERE tag_id NOT IN (SELECT tag_id FROM link)");
 
 	sendLog("finished");
 	echo "event: finished\n";
