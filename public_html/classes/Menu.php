@@ -17,7 +17,8 @@
 				array("Directory management", "/directory/", array(
 					array("Add", "/directory/Add", null),
 					array("Delete", "/directory/Delete", null),
-					array("Scan", "/directory/Scan", null)
+					array("Scan", "/directory/Scan", null),
+					array("Prune", "/directory/Prune", null)
 				)),
 				array("Query", "query/", null)
 			));
