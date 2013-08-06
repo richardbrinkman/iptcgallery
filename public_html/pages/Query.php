@@ -69,6 +69,14 @@
 					unset($this->dropdownlist["comparisonOperand"][$i]);
 					unset($this->dropdownlist["value"][$i]);
 					$this->conditions[$i][2] = $_POST["comparisonOperand"];
+					switch ($this->conditions[$i][2]) {
+						case "=":
+						case "!=": $this->conditions[$i][3] = "0"; break;
+						case "IS":
+						case "IS NOT": $this->conditions[$i][3] = "NULL"; $this->conditions[] = array("AND", "0", "=", "0"); break;
+						case "LIKE":
+						case "NOT LIKE": $this->conditions[$i][3] = ""; break;
+					}
 				}
 			}
 			parent::execute();
@@ -114,8 +122,9 @@
 				"SELECT photo_id, CONCAT(dirname, filename) AS pathname ".
 				"FROM directory ".
 				"NATURAL JOIN photo ".
-				"WHERE true ";
+				"WHERE photo_id IN (SELECT photo_id FROM photo WHERE true ";
 			$photoQueryEnd =
+				") ".
 				"ORDER BY pathname ".
 				"LIMIT 100";
 
@@ -146,7 +155,26 @@
 					$result .= $this->getValueDropdownlist($i, $valueQueryStart . ($iptcId==0 ? "true " : "iptc_id='$iptcId' ") . $accumulatedCondition . $valueQueryEnd);
 
 					if (isset($comparisonOperand) && isset($value) && $value != "0")
-						$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link WHERE tag_id $comparisonOperand $value) ";
+						switch ($comparisonOperand) {
+							case "=":
+								$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link WHERE tag_id=$value) ";
+								break;
+							case "!=":
+								$accumulatedCondition .= " $logicalOperand photo_id NOT IN (SELECT photo_id FROM link WHERE tag_id=$value) ";
+								break;
+							case "IS":
+								$accumulatedCondition .= " $logicalOperand photo_id NOT IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId') ";
+								break;
+							case "IS NOT":
+								$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId') ";
+								break;
+							case "LIKE":
+								$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId' AND value LIKE '$value') ";
+								break;
+							case "NOT LIKE":
+								$accumulatedCondition .= " $logicalOperand photo_id NOT IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId' AND value LIKE '$value') ";
+								break;
+						}
 					
 					$result .= "<a href=\"" . $_SERVER["PHP_SELF"] . "?del=$i\">delete</a>";
 					$result .= "</form>";
@@ -222,7 +250,7 @@
 				return $this->dropdownlist["value"][$i];
 			else {
 				if ($this->conditions[$i][2] == "LIKE" || $this->conditions[$i][2] == "NOT LIKE") {
-					$result = "<input type=\"text\" name=\"value\" onchange=\"submit()\" value=\"not implemented yet\">";
+					$result = "<input type=\"text\" name=\"value\" onchange=\"submit()\" value=\"".$this->conditions[$i][3]."\">";
 					$result .= "<input type=\"submit\" value=\"submit\">";
 				} else {
 					$result = "<select name=\"value\" onchange=\"submit()\">";
