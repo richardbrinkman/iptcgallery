@@ -1,7 +1,7 @@
 <?php
 	namespace pages;
 
-	define("debugmode", true);
+	//define("debugmode", true);
 
 	class Query extends \classes\Page {
 		private $conditions;
@@ -92,7 +92,7 @@
 				"WHERE true ";
 			$nameQueryEnd = 
 				"GROUP BY iptc_id ".
-				"HAVING numberOfValues > 1 ".
+				"HAVING numberOfValues>1 OR COUNT(DISTINCT photo_id)<? ".
 				"ORDER BY iptc_name";
 
 			//Query for the common tags
@@ -104,18 +104,24 @@
 				"WHERE true ";
 			$commonQueryEnd =
 				"GROUP BY iptc_id ".
-				"HAVING COUNT(DISTINCT value) = 1 ".
+				"HAVING COUNT(DISTINCT value)=1 AND COUNT(DISTINCT photo_id)=? ".
 				"ORDER BY iptc_name";
 
 			//Query for the value dropdown list
 			$valueQueryStart =
-				"SELECT tag_id, value, COUNT(photo_id) as numberOfPhotos ".
+				"SELECT tag_id, value, COUNT(photo_id) AS numberOfPhotos ".
 				"FROM tag ".
 				"NATURAL JOIN link ".
 				"WHERE  ";
 			$valueQueryEnd =
 				"GROUP BY tag_id ".
 				"ORDER BY value";
+
+			//Query for the number of found photos
+			$countQueryStart =
+				"SELECT COUNT(DISTINCT photo_id) AS numberOfPhotos ".
+				"FROM photo ".
+				"WHERE true ";
 
 			//Query for the retrieved photos
 			$photoQueryStart =
@@ -136,8 +142,10 @@
 			foreach ($this->conditions as list($logicalOperand, $iptcId, $comparisonOperand, $value)) {
 				$i++;
 				
+				$numberOfPhotos = $this->db->query($countQueryStart . $accumulatedCondition, \PDO::FETCH_COLUMN, 0)->fetch();
+
 				//IPTC tag dropdown list
-				$iptcList = $this->getIptcDropdownlist($i, $nameQueryStart . $accumulatedCondition . $nameQueryEnd);
+				$iptcList = $this->getIptcDropdownlist($i, $nameQueryStart . $accumulatedCondition . $nameQueryEnd, $numberOfPhotos);
 
 				if ($iptcList != "") {
 					$result .= "<form method=\"post\" action=\"" . $_SERVER["PHP_SELF"] . "\">";
@@ -183,7 +191,9 @@
 			$result .= "</div>";
 			
 			//Get common iptc tags
-			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd);
+			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd, $numberOfPhotos);
+
+			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
 	
 			$result .= $this->getThumbnails($photoQueryStart . $accumulatedCondition . $photoQueryEnd);
 
@@ -209,21 +219,23 @@
 			}
 		}
 
-		private function getIptcDropdownlist($i, $query) {
+		private function getIptcDropdownlist($i, $query, $numberOfPhotos) {
 			if (isset($this->dropdownlist["iptc"][$i]))
 				return $this->dropdownlist["iptc"][$i];
 			else {
 				if (defined("debugmode"))
-					echo "<b>iptc:</b> $query<br>";
+					echo "<b>iptc:</b> ". htmlentities($query) . "<br>";
 				$foundSomething = false;
 				$iptcId = $this->conditions[$i][1];
 				$result = "<select name=\"iptc\" onchange=\"submit()\">";
 				$result .= "<option value=\"0\">Choose tag</option>";
-				foreach ($this->db->query($query) as list($iptc_id, $iptcName, $photos)) {
-					$selected = $iptcId==$iptc_id ? " selected" : "";
-					$result .= "<option value=\"$iptc_id\"$selected>$iptcName ($photos)</option>";
-					$foundSomething = true;
-				}
+				$sqlIptc = $this->db->prepare($query);
+				if ($sqlIptc->execute(array($numberOfPhotos)))
+					foreach ($sqlIptc as list($iptc_id, $iptcName, $photos)) {
+						$selected = $iptcId==$iptc_id ? " selected" : "";
+						$result .= "<option value=\"$iptc_id\"$selected>$iptcName ($photos)</option>";
+						$foundSomething = true;
+					}
 				$result .= "</select>";
 				$this->dropdownlist["iptc"][$i] = $foundSomething ? $result : "";
 				return $this->dropdownlist["iptc"][$i];
@@ -292,7 +304,7 @@
 					array_pop($this->dropdownlist[$key]);
 		}
 		
-		private function getCommonTags($i, $query) {
+		private function getCommonTags($i, $query, $numberOfPhotos) {
 			if (isset($this->dropdownlist["common"][$i]))
 				return $this->dropdownlist["common"][$i];
 			else {
@@ -300,10 +312,12 @@
 					echo "<b>common:</b> $query<br>";
 				$foundSomething = false;
 				$result = "<table>";
-				foreach ($this->db->query($query) as list($iptc_name, $value)) {
-					$result .= "<tr><td>$iptc_name</td><td>$value</td></tr>";
-					$foundSomething = true;
-				}
+				$sqlCommon = $this->db->prepare($query);
+				if ($sqlCommon->execute(array($numberOfPhotos)))
+					foreach ($sqlCommon as list($iptc_name, $value)) {
+						$result .= "<tr><td>$iptc_name</td><td>$value</td></tr>";
+						$foundSomething = true;
+					}
 				$result .= "</table>";
 				$this->dropdownlist["common"][$i] = $foundSomething ? $result : "";
 				return $this->dropdownlist["common"][$i];
