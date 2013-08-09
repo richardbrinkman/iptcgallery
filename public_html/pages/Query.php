@@ -194,7 +194,7 @@
 			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd, $numberOfPhotos);
 
 			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
-	
+			$result .= $this->getModifyTags();
 			$result .= $this->getThumbnails($photoQueryStart . $accumulatedCondition . $photoQueryEnd);
 
 			return $result;
@@ -286,12 +286,31 @@
 			}
 		}
 
+		private function getModifyTags() {
+			return
+				"<div class=\"modifyTags\">".
+				"  <script>".
+				"    function toggleAllThumbnails() {".
+				"      var checked = document.getElementById(\"checkall\").checked;".
+				"      var checkbox = document.querySelectorAll(\"span.thumbnail input[type='checkbox']\");".
+				"      for (var i=0; i<checkbox.length; i++)".
+				"        checkbox[i].checked = checked;".
+				"    }".
+				"  </script>".
+				"  <input id=\"checkall\" type=\"checkbox\" onchange=\"toggleAllThumbnails()\">Select all shown thumbnails</input>".
+				"</div>";
+		}
+
 		private function getThumbnails($query) {
 			if (defined("debugmode"))
 				echo "<b>thumbnails:</b> $query<br>";
 			$result = "<div class=\"thumbnails\" id=\"thumbnails\">";
 			foreach ($this->db->query($query) as list($photoId, $filename))
-				$result .= "<img src=\"/thumbnail.php?photo_id=$photoId\" title=\"$filename\" alt=\"$filename\">";
+				$result .=
+					"<span class=\"thumbnail\">".
+					"<input type=\"checkbox\" name=\"thumbnail[$photoId]\">".
+					"<img src=\"/thumbnail.php?photo_id=$photoId\" title=\"$filename\" alt=\"$filename\">".
+					"</span>";
 			$result .= "</div>";
 			return $result;
 		}
