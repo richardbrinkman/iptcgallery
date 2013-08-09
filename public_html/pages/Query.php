@@ -31,57 +31,6 @@
 			$this->template->load("Empty");
 		}
 
-		public function execute() {
-			if (isset($_GET["del"])) {
-				$this->delcondition($_GET["del"]);
-				if (count($this->conditions) == 0)
-					$this->conditions[0] = array("AND", "0", "=", "0");
-			}
-			if (isset($_POST["i"])) {
-				$i = $_POST["i"];
-				
-				//delete all further conditions and dropdownlists
-				$this->delCondition($i+1);
-
-				//logicalOperand changed
-				if ($this->conditions[$i][0] != $_POST["logicalOperand"]) {
-					unset($this->dropdownlist["logicalOperand"][$i]);
-					$this->conditions[$i][0] = $_POST["logicalOperand"];
-				}
-
-				//value changed
-				if ($this->conditions[$i][3] != $_POST["value"]) {
-					unset($this->dropdownlist["value"][$i]);
-					$this->conditions[$i][3] = $_POST["value"];
-					$this->conditions[] = array("AND", "0", "=", "0");			
-				}
-
-				//iptc changed
-				if ($this->conditions[$i][1] != $_POST["iptc"]) {
-					unset($this->dropdownlist["iptc"][$i]);
-					unset($this->dropdownlist["value"][$i]);
-					$this->conditions[$i][1] = $_POST["iptc"];
-					$this->conditions[$i][3] = "0"; //set the value to 0 as well
-				}
-
-				//comparisonOperand changed
-				if ($this->conditions[$i][2] != $_POST["comparisonOperand"]) {
-					unset($this->dropdownlist["comparisonOperand"][$i]);
-					unset($this->dropdownlist["value"][$i]);
-					$this->conditions[$i][2] = $_POST["comparisonOperand"];
-					switch ($this->conditions[$i][2]) {
-						case "=":
-						case "!=": $this->conditions[$i][3] = "0"; break;
-						case "IS":
-						case "IS NOT": $this->conditions[$i][3] = "NULL"; $this->conditions[] = array("AND", "0", "=", "0"); break;
-						case "LIKE":
-						case "NOT LIKE": $this->conditions[$i][3] = ""; break;
-					}
-				}
-			}
-			parent::execute();
-		}
-
 		public function __toString() {
 			//Query for the IPTC tag dropdown list
 			$nameQueryStart = 
@@ -149,6 +98,7 @@
 
 				if ($iptcList != "") {
 					$result .= "<form method=\"post\" action=\"" . $_SERVER["PHP_SELF"] . "\">";
+					$result .= "<input type=\"hidden\" name=\"form\" value=\"query\">";
 					$result .= "<input type=\"hidden\" name=\"i\" value=\"$i\">";
 
 					//logicalOperand dropdown list
@@ -194,10 +144,86 @@
 			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd, $numberOfPhotos);
 
 			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
-			$result .= $this->getModifyTags();
+			$result .= "<form method=\"post\" action=\"/Query\">";
+			$result .= $this->getAddTag();
 			$result .= $this->getThumbnails($photoQueryStart . $accumulatedCondition . $photoQueryEnd);
+			$result .= "</form>";
 
 			return $result;
+		}
+
+		public function execute() {
+			if (isset($_GET["del"]))
+				$this->executeDel();
+			else if (isset($_POST["action"]) && $_POST["action"]=="Add tags")
+				$this->executeAddTags();
+			else if (isset($_POST["form"]))
+				switch ($_POST["form"]) {
+					case "query":	$this->executeQuery(); break;
+					case "addTagsQuery": $this->executeAddTagsQuery(); break;
+				}
+			parent::execute();
+		}
+
+		private function executeDel() {
+			$this->delcondition($_GET["del"]);
+			if (count($this->conditions) == 0)
+				$this->conditions[0] = array("AND", "0", "=", "0");
+		}
+
+		private function executeAddTags() {
+		}
+
+		private function executeAddTagsQuery() {
+			if (isset($_POST["addIptc"]) && (!isset($_SESSION["addIptc"]) || $_POST["addIptc"]!=$_SESSION["addIptc"])) {
+				$_SESSION["addIptc"] = $_POST["addIptc"];
+				$_SESSION["addTag"] = "0";
+			} else if (isset($_SESSION["addIptc"]) && isset($_POST["addTag"]) && (!isset($_SESSION["addTag"]) || $_POST["addTag"]!=$_SESSION["addTag"])) {
+				$_SESSION["addTag"] = $_POST["addTag"];
+			}
+		}
+
+		private function executeQuery() {
+			$i = $_POST["i"];
+			
+			//delete all further conditions and dropdownlists
+			$this->delCondition($i+1);
+
+			//logicalOperand changed
+			if ($this->conditions[$i][0] != $_POST["logicalOperand"]) {
+				unset($this->dropdownlist["logicalOperand"][$i]);
+				$this->conditions[$i][0] = $_POST["logicalOperand"];
+			}
+
+			//value changed
+			if ($this->conditions[$i][3] != $_POST["value"]) {
+				unset($this->dropdownlist["value"][$i]);
+				$this->conditions[$i][3] = $_POST["value"];
+				$this->conditions[] = array("AND", "0", "=", "0");			
+			}
+
+			//iptc changed
+			if ($this->conditions[$i][1] != $_POST["iptc"]) {
+				unset($this->dropdownlist["iptc"][$i]);
+				unset($this->dropdownlist["value"][$i]);
+				$this->conditions[$i][1] = $_POST["iptc"];
+				$this->conditions[$i][3] = "0"; //set the value to 0 as well
+			}
+
+			//comparisonOperand changed
+			if ($this->conditions[$i][2] != $_POST["comparisonOperand"]) {
+				unset($this->dropdownlist["comparisonOperand"][$i]);
+				unset($this->dropdownlist["value"][$i]);
+				$this->conditions[$i][2] = $_POST["comparisonOperand"];
+				switch ($this->conditions[$i][2]) {
+					case "=":
+					case "!=": $this->conditions[$i][3] = "0"; break;
+					case "IS":
+					case "IS NOT": $this->conditions[$i][3] = "NULL"; $this->conditions[] = array("AND", "0", "=", "0"); break;
+					case "LIKE":
+					case "NOT LIKE": $this->conditions[$i][3] = ""; break;
+				}
+			}
 		}
 
 		private function getLogicalOperandDropdownlist($i) {
@@ -286,9 +312,33 @@
 			}
 		}
 
-		private function getModifyTags() {
+		private function getAddTag() {
+			if (!isset($_SESSION["addIptc"]))
+				$_SESSION["addIptc"] = "0";
+			if (!isset($_SESSION["addTag"]))
+				$_SESSION["addTag"] = "0";
+			$iptcList = "<select name=\"addIptc\" onchange=\"submit()\">";
+			$iptcList .= "<option value=\"0\">Choose tag</option>";
+			foreach ($this->db->query("SELECT iptc_id,iptc_name FROM iptc") as list($iptc_id, $iptcName)) {
+				$selected = $_SESSION["addIptc"]==$iptc_id ? " selected" : "";
+				$iptcList .= "<option value=\"$iptc_id\"$selected>$iptcName</option>";
+			}
+			$iptcList .= "</select>";
+			$tagList = "";
+			if ($_SESSION["addIptc"]!="0") {
+				$tagList = "<select name=\"addTag\" onchange=\"submit()\">";
+				$tagList .= "<option value=\"0\">Choose value</option>";
+				$tagList .= "<option value=\"-1\">Enter new value</option>";
+				$query = $this->db->prepare("SELECT tag_id,value FROM tag WHERE iptc_id=?");
+				if ($query->execute(array($_SESSION["addIptc"])))
+					foreach ($query as list($tag_id, $value)) {
+						$selected = $_SESSION["addTag"]==$tag_id ? " selected" : "";
+						$tagList .= "<option value=\"$tag_id\"$selected>$value</option>";
+					}
+				$tagList .= "</select>";
+			}
 			return
-				"<div class=\"modifyTags\">".
+				"<div class=\"addTags\">".
 				"  <script>".
 				"    function toggleAllThumbnails() {".
 				"      var checked = document.getElementById(\"checkall\").checked;".
@@ -297,7 +347,13 @@
 				"        checkbox[i].checked = checked;".
 				"    }".
 				"  </script>".
+				$iptcList.
+				$tagList.
+				"  <br>".
 				"  <input id=\"checkall\" type=\"checkbox\" onchange=\"toggleAllThumbnails()\">Select all shown thumbnails</input>".
+				"  <input type=\"hidden\" name=\"form\" value=\"addTagsQuery\">".
+				"  <br>".
+				"  <input type=\"submit\" name=\"action\" value=\"Add tags\">";
 				"</div>";
 		}
 
