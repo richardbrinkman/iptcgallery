@@ -180,6 +180,7 @@
 				$_SESSION["addTag"] = "0";
 			} else if (isset($_SESSION["addIptc"]) && isset($_POST["addTag"]) && (!isset($_SESSION["addTag"]) || $_POST["addTag"]!=$_SESSION["addTag"])) {
 				$_SESSION["addTag"] = $_POST["addTag"];
+				$_SESSION["addValue"] = "";
 			}
 		}
 
@@ -328,7 +329,8 @@
 			if ($_SESSION["addIptc"]!="0") {
 				$tagList = "<select name=\"addTag\" onchange=\"submit()\">";
 				$tagList .= "<option value=\"0\">Choose value</option>";
-				$tagList .= "<option value=\"-1\">Enter new value</option>";
+				$selected = $_SESSION["addTag"]=="-1" ? " selected" : "";
+				$tagList .= "<option value=\"-1\"$selected>Enter new value</option>";
 				$query = $this->db->prepare("SELECT tag_id,value FROM tag WHERE iptc_id=?");
 				if ($query->execute(array($_SESSION["addIptc"])))
 					foreach ($query as list($tag_id, $value)) {
@@ -336,6 +338,8 @@
 						$tagList .= "<option value=\"$tag_id\"$selected>$value</option>";
 					}
 				$tagList .= "</select>";
+				if ($_SESSION["addTag"]=="-1")
+					$tagList .= "<input type=\"text\" name=\"addValue\">{$_SESSION["addValue"]}</input>";
 			}
 			return
 				"<div class=\"addTags\">".
