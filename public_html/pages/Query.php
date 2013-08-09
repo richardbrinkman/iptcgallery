@@ -361,12 +361,14 @@
 			if (defined("debugmode"))
 				echo "<b>thumbnails:</b> $query<br>";
 			$result = "<div class=\"thumbnails\" id=\"thumbnails\">";
-			foreach ($this->db->query($query) as list($photoId, $filename))
+			foreach ($this->db->query($query) as list($photoId, $filename)) {
+				$checked = isset($_POST["thumbnail"]) && isset($_POST["thumbnail"][$photoId]) && $_POST["thumbnail"][$photoId]=="on" ? " checked" : "";
 				$result .=
 					"<span class=\"thumbnail\">".
-					"<input type=\"checkbox\" name=\"thumbnail[$photoId]\">".
+					"<input type=\"checkbox\" name=\"thumbnail[$photoId]\"$checked>".
 					"<img src=\"/thumbnail.php?photo_id=$photoId\" title=\"$filename\" alt=\"$filename\">".
 					"</span>";
+			}
 			$result .= "</div>";
 			return $result;
 		}
