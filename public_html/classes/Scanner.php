@@ -11,6 +11,7 @@
 			$this->log("finished");
 			echo "event: finished\n";
 			echo "data: Finished gallery scan\n\n";
+			parent::__destruct();
 		}
 
 		public function scan() {

@@ -5,6 +5,8 @@
 		protected $db;
 		protected $sqlGetLastModified;
 		protected $sqlGetPhotoId;
+		protected $sqlGetFilename;
+		protected $sqlGetDirname;
 		protected $sqlGetTag;
 		protected $sqlDelPhoto;
 		protected $sqlInsPhoto;
@@ -17,6 +19,9 @@
 			$this->sqlGetLastModified->setFetchMode(\PDO::FETCH_COLUMN, 0);
 			$this->sqlGetPhotoId = $this->db->prepare("SELECT photo_id FROM photo WHERE directory_id=:directory_id AND filename=:filename");
 			$this->sqlGetPhotoId->setFetchMode(\PDO::FETCH_COLUMN, 0);
+			$this->sqlGetFilename = $this->db->prepare("SELECT directory_id, dirname, filename FROM directory NATURAL JOIN photo WHERE photo_id=:photo_id");
+			$this->sqlGetDirname = $this->db->prepare("SELECT dirname FROM directory WHERE directory_id=:directory_id");
+			$this->sqlGetDirname->setFetchMode(\PDO::FETCH_COLUMN, 0);
 			$this->sqlGetTag = $this->db->prepare("SELECT tag_id FROM tag WHERE iptc_id=:iptc_id AND value=:value");
 			$this->sqlGetTag->setFetchMode(\PDO::FETCH_COLUMN, 0);
 			$this->sqlDelPhoto = $this->db->prepare("DELETE FROM photo WHERE directory_id=:directory_id AND filename=:filename");
@@ -28,6 +33,14 @@
 		public function __destruct() {
 			//Delete tags that are no longer in use
 			$this->db->exec("DELETE FROM tag WHERE tag_id NOT IN (SELECT tag_id FROM link)");
+			if (isset($_SESSION) && isset($_SESSION["dropdownlist"]))
+				$_SESSION["dropdownlist"] = array(
+					"logicalOperand" => array(),
+					"iptc" => array(),
+					"comparisonOperand" => array(),
+					"value" => array(),
+					"common" => array()
+				);
 		}
 
 		public function processPhoto($directoryId, $root, $file) {
@@ -76,6 +89,34 @@
 					}
 				}
 			}
+		}
+
+		public function addTag($photo_id, $iptc_id, $value) {
+			if ($this->sqlGetFilename->execute(array(":photo_id"=>$photo_id)))
+				foreach ($this->sqlGetFilename as list($directory_id, $root, $filename)) {
+					$size = getimagesize($root . $filename, $info);
+					if (isset($info["APP13"]))
+						$iptc = iptcparse($info["APP13"]);
+					else
+						$iptc = array();
+					$iptc[$iptc_id][] = $value;
+					$content = iptcembed($this->iptcToBinary($iptc), $root . $filename);
+						$fp = fopen($root . $filename, "wb");
+					fwrite($fp, $content);
+					fclose($fp);
+					$this->processPhoto($directory_id, $root, $filename);
+				}
+		}
+
+		public static function iptcToBinary($iptc) {
+			$result = "";
+			foreach ($iptc as $iptc_id=>$values)
+				foreach ($values as $value) {
+					$length = strlen($value);
+					list($rec, $data) = explode("#", $iptc_id);
+					$result .= chr(0x1C) . chr($rec) . chr($data) . chr($length >> 8) . chr($length & 0xFF) . $value;
+				}
+			return $result;
 		}
 
 		protected function log($message) {

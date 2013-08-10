@@ -10,6 +10,4 @@
 
 	$scanner = new \classes\Scanner();
 	$scanner->scan();
-	
-	session_destroy(); //Forget about any stored query condition or dropdown menu
 ?>

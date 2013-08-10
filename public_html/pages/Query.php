@@ -10,8 +10,6 @@
 		public function __construct() {
 			parent::__construct();
 			session_start();
-			//unset($_SESSION["conditions"]);
-			//unset($_SESSION["dropdownlist"]);
 			if (!isset($_SESSION["conditions"]))
 				$_SESSION["conditions"] = array();
 			if (!isset($_SESSION["dropdownlist"]))
@@ -172,6 +170,20 @@
 		}
 
 		private function executeAddTags() {
+			if (isset($_POST["addTag"])) {
+				if ($_POST["addTag"]!="-1") {
+					$sqlGetTagValue = $this->db->prepare("SELECT value FROM tag WHERE tag_id=?");
+					if ($sqlGetTagValue->execute(array($_POST["addTag"])))
+						$value = $sqlGetTagValue->fetch(\PDO::FETCH_COLUMN, 0);
+				} else if (isset($_POST["addValue"]))
+					$value = $_POST["addValue"];
+			}
+			if (isset($_POST["addIptc"]) && isset($value) && isset($_POST["thumbnail"])) {
+				$parser = new \classes\IptcParser();
+				foreach (array_keys($_POST["thumbnail"]) as $photo_id)
+					$parser->addTag($photo_id, $_POST["addIptc"], $value);
+				$parser->__destruct();
+			}
 		}
 
 		private function executeAddTagsQuery() {
