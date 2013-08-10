@@ -8,6 +8,7 @@
 		protected $sqlGetFilename;
 		protected $sqlGetDirname;
 		protected $sqlGetTag;
+		protected $sqlGetTagId;
 		protected $sqlDelPhoto;
 		protected $sqlInsPhoto;
 		protected $sqlInsTag;
@@ -22,8 +23,9 @@
 			$this->sqlGetFilename = $this->db->prepare("SELECT directory_id, dirname, filename FROM directory NATURAL JOIN photo WHERE photo_id=:photo_id");
 			$this->sqlGetDirname = $this->db->prepare("SELECT dirname FROM directory WHERE directory_id=:directory_id");
 			$this->sqlGetDirname->setFetchMode(\PDO::FETCH_COLUMN, 0);
-			$this->sqlGetTag = $this->db->prepare("SELECT tag_id FROM tag WHERE iptc_id=:iptc_id AND value=:value");
-			$this->sqlGetTag->setFetchMode(\PDO::FETCH_COLUMN, 0);
+			$this->sqlGetTag = $this->db->prepare("SELECT iptc_id,value FROM tag WHERE tag_id=:tag_id");
+			$this->sqlGetTagId = $this->db->prepare("SELECT tag_id FROM tag WHERE iptc_id=:iptc_id AND value=:value");
+			$this->sqlGetTagId->setFetchMode(\PDO::FETCH_COLUMN, 0);
 			$this->sqlDelPhoto = $this->db->prepare("DELETE FROM photo WHERE directory_id=:directory_id AND filename=:filename");
 			$this->sqlInsPhoto = $this->db->prepare("INSERT INTO photo(directory_id, filename, width, height) VALUES(:directory_id, :filename, :width, :height)");
 			$this->sqlInsTag = $this->db->prepare("INSERT INTO tag(iptc_id, value) VALUES(:iptc_id, :value)");
@@ -70,16 +72,16 @@
 							foreach ($iptc as $iptcId => $values) 
 								foreach ($values as $value) {
 									//First check if the (iptcID,value)-tuple already exists in the database
-									if ($this->sqlGetTag->execute(array(":iptc_id" => $iptcId, ":value" => $value)))
-										$tagId = $this->sqlGetTag->fetch();
+									if ($this->sqlGetTagId->execute(array(":iptc_id" => $iptcId, ":value" => $value)))
+										$tagId = $this->sqlGetTagId->fetch();
 									else
 										$tagId = false;
 
 									//If not than add it and get the new tagId
 									if (!$tagId) {
 										$this->sqlInsTag->execute(array(":iptc_id" => $iptcId, ":value" => $value));
-										if ($this->sqlGetTag->execute(array(":iptc_id" => $iptcId, ":value" => $value)))
-											$tagId = $this->sqlGetTag->fetch();
+										if ($this->sqlGetTagId->execute(array(":iptc_id" => $iptcId, ":value" => $value)))
+											$tagId = $this->sqlGetTagId->fetch();
 									}
 
 									//Link the photo and the tag togetcher
@@ -101,7 +103,32 @@
 						$iptc = array();
 					$iptc[$iptc_id][] = $value;
 					$content = iptcembed($this->iptcToBinary($iptc), $root . $filename);
-						$fp = fopen($root . $filename, "wb");
+					$fp = fopen($root . $filename, "wb");
+					fwrite($fp, $content);
+					fclose($fp);
+					$this->processPhoto($directory_id, $root, $filename);
+				}
+		}
+
+		public function delTags($photo_id, $tag_ids) {
+			if ($this->sqlGetFilename->execute(array(":photo_id"=>$photo_id)))
+				foreach ($this->sqlGetFilename as list($directory_id, $root, $filename)) {
+					$size = getimagesize($root . $filename, $info);
+					if (isset($info["APP13"]))
+						$iptc = iptcparse($info["APP13"]);
+					else
+						$iptc = array();
+					foreach ($tag_ids as $tag_id)
+						if ($this->sqlGetTag->execute(array(":tag_id"=>$tag_id))) {
+							list($iptc_id, $value) = $this->sqlGetTag->fetch();
+							if (isset($iptc[$iptc_id])) {
+								$iptc[$iptc_id] = array_diff($iptc[$iptc_id], array($value));
+								if (count($iptc[$iptc_id]) == 0)
+									unset($iptc[$iptc_id]);
+							}
+						}
+					$content = iptcembed($this->iptcToBinary($iptc), $root . $filename);
+					$fp = fopen($root . $filename, "wb");
 					fwrite($fp, $content);
 					fclose($fp);
 					$this->processPhoto($directory_id, $root, $filename);

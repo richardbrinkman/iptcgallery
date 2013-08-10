@@ -44,7 +44,7 @@
 
 			//Query for the common tags
 			$commonQueryStart =
-				"SELECT iptc_name, value ".
+				"SELECT tag_id, iptc_name, value ".
 				"FROM iptc ".
 				"NATURAL JOIN tag ".
 				"NATURAL JOIN link ".
@@ -138,12 +138,11 @@
 			}
 			$result .= "</div>";
 			
+			$result .= "<form method=\"post\" action=\"/Query\">";
 			//Get common iptc tags
 			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd, $numberOfPhotos);
-
-			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
-			$result .= "<form method=\"post\" action=\"/Query\">";
 			$result .= $this->getAddTag();
+			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
 			$result .= $this->getThumbnails($photoQueryStart . $accumulatedCondition . $photoQueryEnd);
 			$result .= "</form>";
 
@@ -153,8 +152,11 @@
 		public function execute() {
 			if (isset($_GET["del"]))
 				$this->executeDel();
-			else if (isset($_POST["action"]) && $_POST["action"]=="Add tags")
-				$this->executeAddTags();
+			else if (isset($_POST["action"]))
+				switch ($_POST["action"]) {
+					case "Add tags": $this->executeAddTags(); break;
+					case "Del tags": $this->executeDelTags(); break;
+				}
 			else if (isset($_POST["form"]))
 				switch ($_POST["form"]) {
 					case "query":	$this->executeQuery(); break;
@@ -182,6 +184,15 @@
 				$parser = new \classes\IptcParser();
 				foreach (array_keys($_POST["thumbnail"]) as $photo_id)
 					$parser->addTag($photo_id, $_POST["addIptc"], $value);
+				$parser->__destruct();
+			}
+		}
+
+		private function executeDelTags() {
+			if (isset($_POST["delTag"]) && isset($_POST["thumbnail"])) {
+				$parser = new \classes\IptcParser();
+				foreach (array_keys($_POST["thumbnail"]) as $photo_id)
+					$parser->delTags($photo_id, $_POST["delTag"]);
 				$parser->__destruct();
 			}
 		}
@@ -366,10 +377,9 @@
 				$iptcList.
 				$tagList.
 				"  <br>".
-				"  <input id=\"checkall\" type=\"checkbox\" onchange=\"toggleAllThumbnails()\">Select all shown thumbnails</input>".
 				"  <input type=\"hidden\" name=\"form\" value=\"addTagsQuery\">".
-				"  <br>".
-				"  <input type=\"submit\" name=\"action\" value=\"Add tags\">";
+				"  <input type=\"submit\" name=\"action\" value=\"Add tags\"><br>".
+				"  <input id=\"checkall\" type=\"checkbox\" onchange=\"toggleAllThumbnails()\">Select all shown thumbnails</input>".
 				"</div>";
 		}
 
@@ -407,11 +417,12 @@
 				$result = "<table>";
 				$sqlCommon = $this->db->prepare($query);
 				if ($sqlCommon->execute(array($numberOfPhotos)))
-					foreach ($sqlCommon as list($iptc_name, $value)) {
-						$result .= "<tr><td>$iptc_name</td><td>$value</td></tr>";
+					foreach ($sqlCommon as list($tag_id, $iptc_name, $value)) {
+						$result .= "<tr><td><input type=\"checkbox\" name=\"delTag[]\" value=\"$tag_id\"></td><td>$iptc_name</td><td>$value</td></tr>";
 						$foundSomething = true;
 					}
 				$result .= "</table>";
+				$result .= "<input type=\"submit\" name=\"action\" value=\"Del tags\"><br>";
 				$this->dropdownlist["common"][$i] = $foundSomething ? $result : "";
 				return $this->dropdownlist["common"][$i];
 			}
