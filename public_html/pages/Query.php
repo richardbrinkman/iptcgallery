@@ -103,8 +103,8 @@
 				"NATURAL JOIN link ".
 				"WHERE true ";
 			$commonQueryEnd =
-				"GROUP BY iptc_id ".
-				"HAVING COUNT(DISTINCT value)=1 AND COUNT(DISTINCT photo_id)=? ".
+				"GROUP BY tag_id ".
+				"HAVING COUNT(DISTINCT photo_id)=? ".
 				"ORDER BY iptc_name";
 
 			//Query for the value dropdown list
