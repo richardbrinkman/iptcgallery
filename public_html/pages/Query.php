@@ -115,6 +115,7 @@
 				"WHERE  ";
 			$valueQueryEnd =
 				"GROUP BY tag_id ".
+				"HAVING COUNT(DISTINCT photo_id)<? ".
 				"ORDER BY value";
 
 			//Query for the number of found photos
@@ -160,7 +161,7 @@
 					$result .= $this->getComparisonDropdownlist($i);
 
 					//value dropdown list
-					$result .= $this->getValueDropdownlist($i, $valueQueryStart . ($iptcId==0 ? "true " : "iptc_id='$iptcId' ") . $accumulatedCondition . $valueQueryEnd);
+					$result .= $this->getValueDropdownlist($i, $valueQueryStart . ($iptcId==0 ? "true " : "iptc_id='$iptcId' ") . $accumulatedCondition . $valueQueryEnd, $numberOfPhotos);
 
 					if (isset($comparisonOperand) && isset($value) && $value != "0")
 						switch ($comparisonOperand) {
@@ -257,7 +258,7 @@
 			}
 		}
 
-		private function getValueDropdownlist($i, $query) {
+		private function getValueDropdownlist($i, $query, $numberOfPhotos) {
 			if (isset($this->dropdownlist["value"][$i]))
 				return $this->dropdownlist["value"][$i];
 			else {
@@ -274,10 +275,12 @@
 						if (defined("debugmode"))
 							echo "<b>value:</b> $query<br>";
 						$result .= "<option value=\"0\">Choose value</option>";
-						foreach($this->db->query($query) as list($tagId, $value, $numberOfPhotos)) {
-							$selected = $this->conditions[$i][3] == $tagId ? " selected" : "";
-							$result .= "<option value=\"$tagId\"$selected>$value ($numberOfPhotos)</option>";
-						}
+						$sqlValue = $this->db->prepare($query);
+						if ($sqlValue->execute(array($numberOfPhotos)))
+							foreach($sqlValue as list($tagId, $value, $numberOfPhotos)) {
+								$selected = $this->conditions[$i][3] == $tagId ? " selected" : "";
+								$result .= "<option value=\"$tagId\"$selected>$value ($numberOfPhotos)</option>";
+							}
 					}
 					$result .= "</select>";
 				}
