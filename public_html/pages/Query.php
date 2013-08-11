@@ -10,8 +10,6 @@
 		public function __construct() {
 			parent::__construct();
 			session_start();
-			//unset($_SESSION["conditions"]);
-			//unset($_SESSION["dropdownlist"]);
 			if (!isset($_SESSION["conditions"]))
 				$_SESSION["conditions"] = array();
 			if (!isset($_SESSION["dropdownlist"]))
@@ -31,57 +29,6 @@
 			$this->template->load("Empty");
 		}
 
-		public function execute() {
-			if (isset($_GET["del"])) {
-				$this->delcondition($_GET["del"]);
-				if (count($this->conditions) == 0)
-					$this->conditions[0] = array("AND", "0", "=", "0");
-			}
-			if (isset($_POST["i"])) {
-				$i = $_POST["i"];
-				
-				//delete all further conditions and dropdownlists
-				$this->delCondition($i+1);
-
-				//logicalOperand changed
-				if ($this->conditions[$i][0] != $_POST["logicalOperand"]) {
-					unset($this->dropdownlist["logicalOperand"][$i]);
-					$this->conditions[$i][0] = $_POST["logicalOperand"];
-				}
-
-				//value changed
-				if ($this->conditions[$i][3] != $_POST["value"]) {
-					unset($this->dropdownlist["value"][$i]);
-					$this->conditions[$i][3] = $_POST["value"];
-					$this->conditions[] = array("AND", "0", "=", "0");			
-				}
-
-				//iptc changed
-				if ($this->conditions[$i][1] != $_POST["iptc"]) {
-					unset($this->dropdownlist["iptc"][$i]);
-					unset($this->dropdownlist["value"][$i]);
-					$this->conditions[$i][1] = $_POST["iptc"];
-					$this->conditions[$i][3] = "0"; //set the value to 0 as well
-				}
-
-				//comparisonOperand changed
-				if ($this->conditions[$i][2] != $_POST["comparisonOperand"]) {
-					unset($this->dropdownlist["comparisonOperand"][$i]);
-					unset($this->dropdownlist["value"][$i]);
-					$this->conditions[$i][2] = $_POST["comparisonOperand"];
-					switch ($this->conditions[$i][2]) {
-						case "=":
-						case "!=": $this->conditions[$i][3] = "0"; break;
-						case "IS":
-						case "IS NOT": $this->conditions[$i][3] = "NULL"; $this->conditions[] = array("AND", "0", "=", "0"); break;
-						case "LIKE":
-						case "NOT LIKE": $this->conditions[$i][3] = ""; break;
-					}
-				}
-			}
-			parent::execute();
-		}
-
 		public function __toString() {
 			//Query for the IPTC tag dropdown list
 			$nameQueryStart = 
@@ -97,7 +44,7 @@
 
 			//Query for the common tags
 			$commonQueryStart =
-				"SELECT iptc_name, value ".
+				"SELECT tag_id, iptc_name, value ".
 				"FROM iptc ".
 				"NATURAL JOIN tag ".
 				"NATURAL JOIN link ".
@@ -150,6 +97,7 @@
 
 				if ($iptcList != "") {
 					$result .= "<form method=\"post\" action=\"" . $_SERVER["PHP_SELF"] . "\">";
+					$result .= "<input type=\"hidden\" name=\"form\" value=\"query\">";
 					$result .= "<input type=\"hidden\" name=\"i\" value=\"$i\">";
 
 					//logicalOperand dropdown list
@@ -191,14 +139,116 @@
 			}
 			$result .= "</div>";
 			
+			$result .= "<form method=\"post\" action=\"/Query\">";
 			//Get common iptc tags
 			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd, $numberOfPhotos);
-
+			$result .= $this->getAddTag();
 			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
-	
 			$result .= $this->getThumbnails($photoQueryStart . $accumulatedCondition . $photoQueryEnd);
+			$result .= "</form>";
 
 			return $result;
+		}
+
+		public function execute() {
+			if (isset($_GET["del"]))
+				$this->executeDel();
+			else if (isset($_POST["action"]))
+				switch ($_POST["action"]) {
+					case "Add tags": $this->executeAddTags(); break;
+					case "Del tags": $this->executeDelTags(); break;
+				}
+			else if (isset($_POST["form"]))
+				switch ($_POST["form"]) {
+					case "query":	$this->executeQuery(); break;
+					case "addTagsQuery": $this->executeAddTagsQuery(); break;
+				}
+			parent::execute();
+		}
+
+		private function executeDel() {
+			$this->delcondition($_GET["del"]);
+			if (count($this->conditions) == 0)
+				$this->conditions[0] = array("AND", "0", "=", "0");
+		}
+
+		private function executeAddTags() {
+			if (isset($_POST["addTag"])) {
+				if ($_POST["addTag"]!="-1") {
+					$sqlGetTagValue = $this->db->prepare("SELECT value FROM tag WHERE tag_id=?");
+					if ($sqlGetTagValue->execute(array($_POST["addTag"])))
+						$value = $sqlGetTagValue->fetch(\PDO::FETCH_COLUMN, 0);
+				} else if (isset($_POST["addValue"]))
+					$value = $_POST["addValue"];
+			}
+			if (isset($_POST["addIptc"]) && isset($value) && isset($_POST["thumbnail"])) {
+				$parser = new \classes\IptcParser();
+				foreach (array_keys($_POST["thumbnail"]) as $photo_id)
+					$parser->addTag($photo_id, $_POST["addIptc"], $value);
+				$parser->__destruct();
+			}
+		}
+
+		private function executeDelTags() {
+			if (isset($_POST["delTag"]) && isset($_POST["thumbnail"])) {
+				$parser = new \classes\IptcParser();
+				foreach (array_keys($_POST["thumbnail"]) as $photo_id)
+					$parser->delTags($photo_id, $_POST["delTag"]);
+				$parser->__destruct();
+			}
+		}
+
+		private function executeAddTagsQuery() {
+			if (isset($_POST["addIptc"]) && (!isset($_SESSION["addIptc"]) || $_POST["addIptc"]!=$_SESSION["addIptc"])) {
+				$_SESSION["addIptc"] = $_POST["addIptc"];
+				$_SESSION["addTag"] = "0";
+			} else if (isset($_SESSION["addIptc"]) && isset($_POST["addTag"]) && (!isset($_SESSION["addTag"]) || $_POST["addTag"]!=$_SESSION["addTag"])) {
+				$_SESSION["addTag"] = $_POST["addTag"];
+				$_SESSION["addValue"] = "";
+			}
+		}
+
+		private function executeQuery() {
+			$i = $_POST["i"];
+			
+			//delete all further conditions and dropdownlists
+			$this->delCondition($i+1);
+
+			//logicalOperand changed
+			if ($this->conditions[$i][0] != $_POST["logicalOperand"]) {
+				unset($this->dropdownlist["logicalOperand"][$i]);
+				$this->conditions[$i][0] = $_POST["logicalOperand"];
+			}
+
+			//value changed
+			if ($this->conditions[$i][3] != $_POST["value"]) {
+				unset($this->dropdownlist["value"][$i]);
+				$this->conditions[$i][3] = $_POST["value"];
+				$this->conditions[] = array("AND", "0", "=", "0");			
+			}
+
+			//iptc changed
+			if ($this->conditions[$i][1] != $_POST["iptc"]) {
+				unset($this->dropdownlist["iptc"][$i]);
+				unset($this->dropdownlist["value"][$i]);
+				$this->conditions[$i][1] = $_POST["iptc"];
+				$this->conditions[$i][3] = "0"; //set the value to 0 as well
+			}
+
+			//comparisonOperand changed
+			if ($this->conditions[$i][2] != $_POST["comparisonOperand"]) {
+				unset($this->dropdownlist["comparisonOperand"][$i]);
+				unset($this->dropdownlist["value"][$i]);
+				$this->conditions[$i][2] = $_POST["comparisonOperand"];
+				switch ($this->conditions[$i][2]) {
+					case "=":
+					case "!=": $this->conditions[$i][3] = "0"; break;
+					case "IS":
+					case "IS NOT": $this->conditions[$i][3] = "NULL"; $this->conditions[] = array("AND", "0", "=", "0"); break;
+					case "LIKE":
+					case "NOT LIKE": $this->conditions[$i][3] = ""; break;
+				}
+			}
 		}
 
 		private function getLogicalOperandDropdownlist($i) {
@@ -289,12 +339,65 @@
 			}
 		}
 
+		private function getAddTag() {
+			if (!isset($_SESSION["addIptc"]))
+				$_SESSION["addIptc"] = "0";
+			if (!isset($_SESSION["addTag"]))
+				$_SESSION["addTag"] = "0";
+			$iptcList = "<select name=\"addIptc\" onchange=\"submit()\">";
+			$iptcList .= "<option value=\"0\">Choose tag</option>";
+			foreach ($this->db->query("SELECT iptc_id,iptc_name FROM iptc") as list($iptc_id, $iptcName)) {
+				$selected = $_SESSION["addIptc"]==$iptc_id ? " selected" : "";
+				$iptcList .= "<option value=\"$iptc_id\"$selected>$iptcName</option>";
+			}
+			$iptcList .= "</select>";
+			$tagList = "";
+			if ($_SESSION["addIptc"]!="0") {
+				$tagList = "<select name=\"addTag\" onchange=\"submit()\">";
+				$tagList .= "<option value=\"0\">Choose value</option>";
+				$selected = $_SESSION["addTag"]=="-1" ? " selected" : "";
+				$tagList .= "<option value=\"-1\"$selected>Enter new value</option>";
+				$query = $this->db->prepare("SELECT tag_id,value FROM tag WHERE iptc_id=?");
+				if ($query->execute(array($_SESSION["addIptc"])))
+					foreach ($query as list($tag_id, $value)) {
+						$selected = $_SESSION["addTag"]==$tag_id ? " selected" : "";
+						$tagList .= "<option value=\"$tag_id\"$selected>$value</option>";
+					}
+				$tagList .= "</select>";
+				if ($_SESSION["addTag"]=="-1")
+					$tagList .= "<input type=\"text\" name=\"addValue\">{$_SESSION["addValue"]}</input>";
+			}
+			return
+				"<div class=\"addTags\">".
+				"  <script>".
+				"    function toggleAllThumbnails() {".
+				"      var checked = document.getElementById(\"checkall\").checked;".
+				"      var checkbox = document.querySelectorAll(\"span.thumbnail input[type='checkbox']\");".
+				"      for (var i=0; i<checkbox.length; i++)".
+				"        checkbox[i].checked = checked;".
+				"    }".
+				"  </script>".
+				$iptcList.
+				$tagList.
+				"  <br>".
+				"  <input type=\"hidden\" name=\"form\" value=\"addTagsQuery\">".
+				"  <input type=\"submit\" name=\"action\" value=\"Add tags\"><br>".
+				"  <input id=\"checkall\" type=\"checkbox\" onchange=\"toggleAllThumbnails()\">Select all shown thumbnails</input>".
+				"</div>";
+		}
+
 		private function getThumbnails($query) {
 			if (defined("debugmode"))
 				echo "<b>thumbnails:</b> $query<br>";
 			$result = "<div class=\"thumbnails\" id=\"thumbnails\">";
-			foreach ($this->db->query($query) as list($photoId, $filename))
-				$result .= "<img src=\"/thumbnail.php?photo_id=$photoId\" title=\"$filename\" alt=\"$filename\">";
+			foreach ($this->db->query($query) as list($photoId, $filename)) {
+				$checked = isset($_POST["thumbnail"]) && isset($_POST["thumbnail"][$photoId]) && $_POST["thumbnail"][$photoId]=="on" ? " checked" : "";
+				$result .=
+					"<span class=\"thumbnail\">".
+					"<input type=\"checkbox\" name=\"thumbnail[$photoId]\"$checked>".
+					"<img src=\"/thumbnail.php?photo_id=$photoId\" title=\"$filename\" alt=\"$filename\">".
+					"</span>";
+			}
 			$result .= "</div>";
 			return $result;
 		}
@@ -317,11 +420,12 @@
 				$result = "<table>";
 				$sqlCommon = $this->db->prepare($query);
 				if ($sqlCommon->execute(array($numberOfPhotos)))
-					foreach ($sqlCommon as list($iptc_name, $value)) {
-						$result .= "<tr><td>$iptc_name</td><td>$value</td></tr>";
+					foreach ($sqlCommon as list($tag_id, $iptc_name, $value)) {
+						$result .= "<tr><td><input type=\"checkbox\" name=\"delTag[]\" value=\"$tag_id\"></td><td>$iptc_name</td><td>$value</td></tr>";
 						$foundSomething = true;
 					}
 				$result .= "</table>";
+				$result .= "<input type=\"submit\" name=\"action\" value=\"Del tags\"><br>";
 				$this->dropdownlist["common"][$i] = $foundSomething ? $result : "";
 				return $this->dropdownlist["common"][$i];
 			}
