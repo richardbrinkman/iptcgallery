@@ -5,6 +5,7 @@
 
 		public function __construct() {
 			parent::__construct();
+			$this->internalUpdate = false;
 		}
 
 		public function __destruct() {

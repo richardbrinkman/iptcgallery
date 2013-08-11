@@ -3,33 +3,35 @@
 	
 	class IptcParser {
 		protected $db;
+		protected $internalUpdate;
 		protected $sqlGetLastModified;
-		protected $sqlGetPhotoId;
 		protected $sqlGetFilename;
 		protected $sqlGetDirname;
 		protected $sqlGetTag;
 		protected $sqlGetTagId;
 		protected $sqlDelPhoto;
+		protected $sqlDelLink;
 		protected $sqlInsPhoto;
 		protected $sqlInsTag;
 		protected $sqlInsLink;
+		protected $sqlUpdLastModified;
 
 		public function __construct() {
 			$this->db = Database::getInstance();
-			$this->sqlGetLastModified = $this->db->prepare("SELECT UNIX_TIMESTAMP(last_modified) FROM photo WHERE directory_id=:directory_id AND filename=:filename");
-			$this->sqlGetLastModified->setFetchMode(\PDO::FETCH_COLUMN, 0);
-			$this->sqlGetPhotoId = $this->db->prepare("SELECT photo_id FROM photo WHERE directory_id=:directory_id AND filename=:filename");
-			$this->sqlGetPhotoId->setFetchMode(\PDO::FETCH_COLUMN, 0);
+			$this->internalUpdate = true;
+			$this->sqlGetLastModified = $this->db->prepare("SELECT photo_id,UNIX_TIMESTAMP(last_modified) FROM photo WHERE directory_id=:directory_id AND filename=:filename");
 			$this->sqlGetFilename = $this->db->prepare("SELECT directory_id, dirname, filename FROM directory NATURAL JOIN photo WHERE photo_id=:photo_id");
 			$this->sqlGetDirname = $this->db->prepare("SELECT dirname FROM directory WHERE directory_id=:directory_id");
 			$this->sqlGetDirname->setFetchMode(\PDO::FETCH_COLUMN, 0);
 			$this->sqlGetTag = $this->db->prepare("SELECT iptc_id,value FROM tag WHERE tag_id=:tag_id");
 			$this->sqlGetTagId = $this->db->prepare("SELECT tag_id FROM tag WHERE iptc_id=:iptc_id AND value=:value");
 			$this->sqlGetTagId->setFetchMode(\PDO::FETCH_COLUMN, 0);
-			$this->sqlDelPhoto = $this->db->prepare("DELETE FROM photo WHERE directory_id=:directory_id AND filename=:filename");
+			$this->sqlDelPhoto = $this->db->prepare("DELETE FROM photo WHERE photo_id=:photo_id");
+			$this->sqlDelLink = $this->db->prepare("DELETE FROM link WHERE photo_id=:photo_id");
 			$this->sqlInsPhoto = $this->db->prepare("INSERT INTO photo(directory_id, filename, width, height) VALUES(:directory_id, :filename, :width, :height)");
 			$this->sqlInsTag = $this->db->prepare("INSERT INTO tag(iptc_id, value) VALUES(:iptc_id, :value)");
 			$this->sqlInsLink = $this->db->prepare("INSERT INTO link(tag_id, photo_id) VALUES(:tag_id, :photo_id)");
+			$this->sqlUpdLastModified = $this->db->prepare("UPDATE photo SET last_modified=CURRENT_TIMESTAMP WHERE photo_id=:photo_id");
 		}
 
 		public function __destruct() {
@@ -48,26 +50,37 @@
 		public function processPhoto($directoryId, $root, $file) {
 			//Get date of last modification from the database if the photo already exists
 			if ($this->sqlGetLastModified->execute(array(":directory_id" => $directoryId, ":filename" => $file))) {
-				$lastModified = $this->sqlGetLastModified->fetch();
+				list($photoId,$lastModified) = $this->sqlGetLastModified->fetch();
 				if ($lastModified < filemtime($root . $file)) {
 					//Retrieve meta-information about the photo from the file
 					$sizes = getimagesize($root . $file, $imageinfo);
 					if ($sizes["mime"] == "image/jpeg") {
 						if ($lastModified) { //Photo exists and needs updating
 							$this->log("Updating: " . $root . $file);
-							//Delete the old photo from the database
-							if (!$this->sqlDelPhoto->execute(array(":directory_id" => $directoryId, ":filename" => $file)))
-								throw new \Exception("$file already exists and cannot delete it from the database");
+							if ($this->internalUpdate) {
+								$this->sqlUpdLastModified->execute(array(":photo_id"=>$photoId));
+								$this->sqlDelLink->execute(array(":photo_id"=>$photoId));
+							} else {
+								//Delete the old photo from the database
+								$this->sqlDelPhoto->execute(array(":photo_id" => $photoId));
+							}
 						} else
 							$this->log("Adding: " . $root . $file);
 
 						//Insert photo into the database
-						if (!$this->sqlInsPhoto->execute(array(":directory_id" => $directoryId, ":filename" => $file, ":width" => $sizes[0], ":height" => $sizes[1])))
-							throw new \Exception("Could not insert $file into the database");
+						if (!$lastModified==false || !$this->internalUpdate) {
+							$this->sqlInsPhoto->execute(array(
+								":directory_id" => $directoryId,
+								":filename" => $file,
+								":width" => $sizes[0],
+								":height" => $sizes[1]
+							));
+							$this->sqlGetLastModified->execute(array(":directory_id"=>$directoryId, ":filename"=>$file));
+							list($photoId, $lastModified) = $this->sqlGetLastModified->fetch();
+						}
 
-						//Check if photo has embedded IPTC meta-data and if so, retrieve the photo_id
-						if (isset($imageinfo["APP13"]) && $this->sqlGetPhotoId->execute(array(":directory_id" => $directoryId, ":filename" => $file))) {
-							$photoId = $this->sqlGetPhotoId->fetch();
+						//Check if photo has embedded IPTC meta-data
+						if (isset($imageinfo["APP13"])) {
 							$iptc = iptcparse($imageinfo["APP13"]);
 							foreach ($iptc as $iptcId => $values) 
 								foreach ($values as $value) {
