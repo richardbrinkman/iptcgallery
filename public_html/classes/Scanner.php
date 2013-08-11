@@ -12,6 +12,7 @@
 			$this->log("finished");
 			echo "event: finished\n";
 			echo "data: Finished gallery scan\n\n";
+			session_destroy();
 			parent::__destruct();
 		}
 
