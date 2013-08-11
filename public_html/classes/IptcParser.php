@@ -42,8 +42,7 @@
 					"logicalOperand" => array(),
 					"iptc" => array(),
 					"comparisonOperand" => array(),
-					"value" => array(),
-					"common" => array()
+					"value" => array()
 				);
 		}
 

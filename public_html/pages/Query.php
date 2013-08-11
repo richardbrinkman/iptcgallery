@@ -1,5 +1,7 @@
 <?php
 	namespace pages;
+	
+	set_time_limit(0); //allow this script to run al long as it takes
 
 	//define("debugmode", true);
 
@@ -17,8 +19,7 @@
 					"logicalOperand" => array(),
 					"iptc" => array(),
 					"comparisonOperand" => array(),
-					"value" => array(),
-					"common" => array()
+					"value" => array()
 				);
 			$this->conditions = &$_SESSION["conditions"];
 			$this->dropdownlist = &$_SESSION["dropdownlist"];
@@ -80,7 +81,7 @@
 			$photoQueryEnd =
 				") ".
 				"ORDER BY pathname ".
-				"LIMIT 100";
+				"LIMIT 500";
 
 			//Query for the accumulated condition
 			$accumulatedCondition = "";
@@ -411,24 +412,19 @@
 		}
 		
 		private function getCommonTags($i, $query, $numberOfPhotos) {
-			if (isset($this->dropdownlist["common"][$i]))
-				return $this->dropdownlist["common"][$i];
-			else {
-				if (defined("debugmode"))
-					echo "<b>common:</b> $query<br>";
-				$foundSomething = false;
-				$result = "<table>";
-				$sqlCommon = $this->db->prepare($query);
-				if ($sqlCommon->execute(array($numberOfPhotos)))
-					foreach ($sqlCommon as list($tag_id, $iptc_name, $value)) {
-						$result .= "<tr><td><input type=\"checkbox\" name=\"delTag[]\" value=\"$tag_id\"></td><td>$iptc_name</td><td>$value</td></tr>";
-						$foundSomething = true;
-					}
-				$result .= "</table>";
-				$result .= "<input type=\"submit\" name=\"action\" value=\"Del tags\"><br>";
-				$this->dropdownlist["common"][$i] = $foundSomething ? $result : "";
-				return $this->dropdownlist["common"][$i];
-			}
+			if (defined("debugmode"))
+				echo "<b>common:</b> $query<br>";
+			$foundSomething = false;
+			$result = "<table>";
+			$sqlCommon = $this->db->prepare($query);
+			if ($sqlCommon->execute(array($numberOfPhotos)))
+				foreach ($sqlCommon as list($tag_id, $iptc_name, $value)) {
+					$result .= "<tr><td><input type=\"checkbox\" name=\"delTag[]\" value=\"$tag_id\"></td><td>$iptc_name</td><td>$value</td></tr>";
+					$foundSomething = true;
+				}
+			$result .= "</table>";
+			$result .= "<input type=\"submit\" name=\"action\" value=\"Del tags\"><br>";
+			return $foundSomething ? $result : "";
 		}
 	}
 ?>
