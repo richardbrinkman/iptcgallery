@@ -53,7 +53,7 @@
 			$commonQueryEnd =
 				"GROUP BY tag_id ".
 				"HAVING COUNT(DISTINCT photo_id)=? ".
-				"ORDER BY iptc_name";
+				"ORDER BY iptc_name, value";
 
 			//Query for the value dropdown list
 			$valueQueryStart =
