@@ -85,11 +85,17 @@
 
 			//Query for the accumulated condition
 			$accumulatedCondition = "";
+			$completeCondition = "";
 
 			$result = "<div class=\"query\" id=\"query\">";
 			$i = -1;
 			foreach ($this->conditions as list($logicalOperand, $iptcId, $comparisonOperand, $value)) {
 				$i++;
+				
+				if ($logicalOperand == "OR") {
+					$completeCondition .= "$accumulatedCondition OR true";
+					$accumulatedCondition = "";
+				}
 				
 				$numberOfPhotos = $this->db->query($countQueryStart . $accumulatedCondition, \PDO::FETCH_COLUMN, 0)->fetch();
 
@@ -115,22 +121,22 @@
 					if (isset($comparisonOperand) && isset($value) && $value != "0")
 						switch ($comparisonOperand) {
 							case "=":
-								$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link WHERE tag_id=$value) ";
+								$accumulatedCondition .= " AND photo_id IN (SELECT photo_id FROM link WHERE tag_id=$value) ";
 								break;
 							case "!=":
-								$accumulatedCondition .= " $logicalOperand photo_id NOT IN (SELECT photo_id FROM link WHERE tag_id=$value) ";
+								$accumulatedCondition .= " AND photo_id NOT IN (SELECT photo_id FROM link WHERE tag_id=$value) ";
 								break;
 							case "IS":
-								$accumulatedCondition .= " $logicalOperand photo_id NOT IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId') ";
+								$accumulatedCondition .= " AND photo_id NOT IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId') ";
 								break;
 							case "IS NOT":
-								$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId') ";
+								$accumulatedCondition .= " AND photo_id IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId') ";
 								break;
 							case "LIKE":
-								$accumulatedCondition .= " $logicalOperand photo_id IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId' AND value LIKE '$value') ";
+								$accumulatedCondition .= " AND photo_id IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId' AND value LIKE '$value') ";
 								break;
 							case "NOT LIKE":
-								$accumulatedCondition .= " $logicalOperand photo_id NOT IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId' AND value LIKE '$value') ";
+								$accumulatedCondition .= " AND photo_id NOT IN (SELECT photo_id FROM link NATURAL JOIN tag WHERE iptc_id='$iptcId' AND value LIKE '$value') ";
 								break;
 						}
 					
@@ -139,13 +145,16 @@
 				}
 			}
 			$result .= "</div>";
-			
+		
+			$completeCondition .= $accumulatedCondition;
+
 			$result .= "<form method=\"post\" action=\"/Query\">";
 			//Get common iptc tags
-			$result .= $this->getCommonTags($i, $commonQueryStart . $accumulatedCondition . $commonQueryEnd, $numberOfPhotos);
+			$numberOfPhotos = $this->db->query($countQueryStart . $completeCondition, \PDO::FETCH_COLUMN, 0)->fetch();
+			$result .= $this->getCommonTags($i, $commonQueryStart . $completeCondition . $commonQueryEnd, $numberOfPhotos);
 			$result .= $this->getAddTag();
 			$result .= "<p>Number of pictures: $numberOfPhotos</p>";
-			$result .= $this->getThumbnails($photoQueryStart . $accumulatedCondition . $photoQueryEnd);
+			$result .= $this->getThumbnails($photoQueryStart . $completeCondition . $photoQueryEnd);
 			$result .= "</form>";
 
 			return $result;
@@ -218,6 +227,8 @@
 			//logicalOperand changed
 			if ($this->conditions[$i][0] != $_POST["logicalOperand"]) {
 				unset($this->dropdownlist["logicalOperand"][$i]);
+				unset($this->dropdownlist["iptc"][$i]);
+				unset($this->dropdownlist["value"][$i]);
 				$this->conditions[$i][0] = $_POST["logicalOperand"];
 			}
 
